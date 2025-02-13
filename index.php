@@ -1,23 +1,32 @@
 <?php
-session_start(); // Start the session to manage cart data
-require 'db.php'; // Include the database connection
+session_start();
+require 'db.php';
 
 // Fetch all books from the database
 $stmt = $pdo->query("SELECT * FROM books");
 $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Initialize the cart in the session if it doesn't exist
-if (!isset($_SESSION['cart'])) {
-    $_SESSION['cart'] = [];
-}
-
 // Handle add to cart action
 if (isset($_POST['add_to_cart'])) {
     $book_id = $_POST['book_id'];
-    if (!in_array($book_id, $_SESSION['cart'])) {
-        $_SESSION['cart'][] = $book_id; // Add book ID to the cart
+    $user_id = 1; // Replace with actual user ID from session when you implement user authentication
+    
+    // Check if the book is already in the cart
+    $stmt = $pdo->prepare("SELECT * FROM cart WHERE user_id = ? AND book_id = ?");
+    $stmt->execute([$user_id, $book_id]);
+    $existing_item = $stmt->fetch();
+    
+    if ($existing_item) {
+        // Update quantity if the book is already in the cart
+        $stmt = $pdo->prepare("UPDATE cart SET quantity = quantity + 1 WHERE id = ?");
+        $stmt->execute([$existing_item['id']]);
+    } else {
+        // Add new item to the cart
+        $stmt = $pdo->prepare("INSERT INTO cart (user_id, book_id, quantity) VALUES (?, ?, 1)");
+        $stmt->execute([$user_id, $book_id]);
     }
-    header('Location: index.php'); // Refresh the page
+    
+    header('Location: index.php?added=1');
     exit;
 }
 ?>
@@ -30,7 +39,6 @@ if (isset($_POST['add_to_cart'])) {
     <title>BookStore</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Tailwind configuration
         tailwind.config = {
             theme: {
                 extend: {
@@ -63,12 +71,19 @@ if (isset($_POST['add_to_cart'])) {
                 </div>
                 <a href="#" class="text-gray-300 hover:text-white">Login</a>
                 <a href="#" class="text-gray-300 hover:text-white">Sign Up</a>
-                <a href="cart.php" class="text-white"> <!-- Link to cart.php -->
+                <a href="cart.php" class="text-white">
                     <img src="./cart.png" alt="Cart" class="h-9 w-9">
                 </a>
             </div>
         </div>
     </nav>
+
+    <?php if (isset($_GET['added'])): ?>
+    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+        <strong class="font-bold">Success!</strong>
+        <span class="block sm:inline"> Book added to cart.</span>
+    </div>
+    <?php endif; ?>
 
     <!-- Hero Section -->
     <div class="relative bg-gradient-to-r from-book-blue to-navy py-12">
@@ -96,7 +111,8 @@ if (isset($_POST['add_to_cart'])) {
                 <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105">
                     <img src="<?php echo htmlspecialchars($book['cover']); ?>" 
                          alt="<?php echo htmlspecialchars($book['title']); ?>" 
-                         class="h-48 mx-auto p-1">
+                         class="h-48 mx-auto p-1 object-cover"
+                         onerror="this.onerror=null; this.src='/path/to/default-cover.jpg';">
                     <div class="p-4">
                         <div class="text-xs text-blue-600 font-semibold mb-2"><?php echo htmlspecialchars($book['category']); ?></div>
                         <h3 class="font-semibold text-lg mb-1"><?php echo htmlspecialchars($book['title']); ?></h3>
@@ -116,24 +132,6 @@ if (isset($_POST['add_to_cart'])) {
         </div>
     </div>
 
-    <!-- Book Details -->
-    <div class="container mx-auto px-4 py-8">
-        <h2 class="text-2xl font-bold mb-6">Book Details</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            <?php foreach (array_slice($books, 0, 5) as $book): ?>
-                <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                    <img src="<?php echo htmlspecialchars($book['cover']); ?>" 
-                         alt="<?php echo htmlspecialchars($book['title']); ?>" 
-                         class="h-48 p-1 mx-auto">
-                    <div class="p-3">
-                        <h3 class="font-semibold text-sm truncate"><?php echo htmlspecialchars($book['title']); ?></h3>
-                        <p class="text-gray-600 text-xs"><?php echo htmlspecialchars($book['author']); ?></p>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-
     <script>
         // Search functionality
         document.getElementById('searchInput').addEventListener('input', function(e) {
@@ -143,8 +141,9 @@ if (isset($_POST['add_to_cart'])) {
             bookElements.forEach(element => {
                 const title = element.querySelector('h3').textContent.toLowerCase();
                 const author = element.querySelector('p').textContent.toLowerCase();
+                const category = element.querySelector('.text-blue-600').textContent.toLowerCase();
                 
-                if (title.includes(searchTerm) || author.includes(searchTerm)) {
+                if (title.includes(searchTerm) || author.includes(searchTerm) || category.includes(searchTerm)) {
                     element.style.display = '';
                 } else {
                     element.style.display = 'none';

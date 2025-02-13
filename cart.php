@@ -1,10 +1,14 @@
 <?php
-require 'db.php'; // Include the database connection
+session_start();
+require 'db.php';
+
+$user_id = 1; // Replace with actual user ID from session when you implement user authentication
 
 // Fetch cart items from the database
-$stmt = $pdo->query("SELECT c.*, b.* FROM cart c 
-                     JOIN books b ON c.book_id = b.id 
-                     WHERE c.user_id = 1"); // Replace with actual user ID from session
+$stmt = $pdo->prepare("SELECT c.*, b.* FROM cart c 
+                       JOIN books b ON c.book_id = b.id 
+                       WHERE c.user_id = ?");
+$stmt->execute([$user_id]);
 $cartItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Calculate total
@@ -14,16 +18,23 @@ $total = array_reduce($cartItems, function($sum, $item) {
 
 // Handle quantity updates
 if (isset($_POST['update_quantity'])) {
-    $stmt = $pdo->prepare("UPDATE cart SET quantity = ? WHERE id = ?");
-    $stmt->execute([$_POST['quantity'], $_POST['cart_id']]);
+    $cart_id = $_POST['cart_id'];
+    $quantity = $_POST['quantity'];
+    
+    if ($quantity > 0) {
+        $stmt = $pdo->prepare("UPDATE cart SET quantity = ? WHERE id = ? AND user_id = ?");
+        $stmt->execute([$quantity, $cart_id, $user_id]);
+    }
     header('Location: cart.php');
     exit;
 }
 
 // Handle remove item
 if (isset($_POST['remove_item'])) {
-    $stmt = $pdo->prepare("DELETE FROM cart WHERE id = ?");
-    $stmt->execute([$_POST['cart_id']]);
+    $cart_id = $_POST['cart_id'];
+    
+    $stmt = $pdo->prepare("DELETE FROM cart WHERE id = ? AND user_id = ?");
+    $stmt->execute([$cart_id, $user_id]);
     header('Location: cart.php');
     exit;
 }
@@ -94,7 +105,8 @@ if (isset($_POST['remove_item'])) {
                             <div class="flex items-start gap-4">
                                 <img src="<?php echo htmlspecialchars($item['cover']); ?>" 
                                      alt="<?php echo htmlspecialchars($item['title']); ?>" 
-                                     class="w-32 h-40 object-cover rounded">
+                                     class="w-32 h-40 object-cover rounded"
+                                     onerror="this.onerror=null; this.src='/path/to/default-cover.jpg';">
                                 
                                 <div class="flex-1">
                                     <div class="flex justify-between">
@@ -122,35 +134,6 @@ if (isset($_POST['remove_item'])) {
                                                 Remove
                                             </button>
                                         </form>
-                                    </div>
-                                    
-                                    <!-- Book Description -->
-                                    <p class="text-gray-600 mt-4 text-sm">
-                                        <?php echo htmlspecialchars($item['description'] ?? 'No description available.'); ?>
-                                    </p>
-                                    
-                                    <!-- Reviews Section -->
-                                    <div class="mt-4 border-t pt-4">
-                                        <h4 class="font-semibold mb-2">Reviews</h4>
-                                        <?php
-                                        // Fetch reviews for this book
-                                        $reviewStmt = $pdo->prepare("SELECT * FROM reviews WHERE book_id = ? LIMIT 2");
-                                        $reviewStmt->execute([$item['book_id']]);
-                                        $reviews = $reviewStmt->fetchAll(PDO::FETCH_ASSOC);
-                                        
-                                        foreach ($reviews as $review): ?>
-                                            <div class="bg-gray-50 p-3 rounded mb-2">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="font-semibold text-sm">
-                                                        <?php echo htmlspecialchars($review['user_name']); ?>
-                                                    </span>
-                                                    <span class="text-yellow-500">★★★★★</span>
-                                                </div>
-                                                <p class="text-sm text-gray-600 mt-1">
-                                                    <?php echo htmlspecialchars($review['review_text']); ?>
-                                                </p>
-                                            </div>
-                                        <?php endforeach; ?>
                                     </div>
                                 </div>
                             </div>
