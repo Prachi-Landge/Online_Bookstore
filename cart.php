@@ -1,13 +1,19 @@
 <?php
 session_start();
 require 'db.php';
+require 'auth.php';
 
-$user_id = 1; // Replace with actual user ID from session when you implement user authentication
+// Require authentication
+requireAuth();
+
+$user_id = $_SESSION['user_id'];
+$username = $_SESSION['username'] ?? 'User';
 
 // Fetch cart items from the database
 $stmt = $pdo->prepare("SELECT c.*, b.* FROM cart c 
                        JOIN books b ON c.book_id = b.id 
-                       WHERE c.user_id = ?");
+                       WHERE c.user_id = ?
+                       ORDER BY c.id DESC");
 $stmt->execute([$user_id]);
 $cartItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -18,10 +24,10 @@ $total = array_reduce($cartItems, function($sum, $item) {
 
 // Handle quantity updates
 if (isset($_POST['update_quantity'])) {
-    $cart_id = $_POST['cart_id'];
-    $quantity = $_POST['quantity'];
+    $cart_id = intval($_POST['cart_id'] ?? 0);
+    $quantity = intval($_POST['quantity'] ?? 0);
     
-    if ($quantity > 0) {
+    if ($cart_id > 0 && $quantity > 0) {
         $stmt = $pdo->prepare("UPDATE cart SET quantity = ? WHERE id = ? AND user_id = ?");
         $stmt->execute([$quantity, $cart_id, $user_id]);
     }
@@ -31,10 +37,12 @@ if (isset($_POST['update_quantity'])) {
 
 // Handle remove item
 if (isset($_POST['remove_item'])) {
-    $cart_id = $_POST['cart_id'];
+    $cart_id = intval($_POST['cart_id'] ?? 0);
     
-    $stmt = $pdo->prepare("DELETE FROM cart WHERE id = ? AND user_id = ?");
-    $stmt->execute([$cart_id, $user_id]);
+    if ($cart_id > 0) {
+        $stmt = $pdo->prepare("DELETE FROM cart WHERE id = ? AND user_id = ?");
+        $stmt->execute([$cart_id, $user_id]);
+    }
     header('Location: cart.php');
     exit;
 }
@@ -62,24 +70,20 @@ if (isset($_POST['remove_item'])) {
 </head>
 <body class="bg-gray-100">
     <!-- Navigation -->
-    <nav class="bg-navy p-4 sticky top-0 z-50">
+    <nav class="bg-navy p-4 sticky top-0 z-50 shadow-lg">
         <div class="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center space-x-6">
-                <a href="index.php" class="text-white font-semibold">Books</a>
-                <a href="#" class="text-gray-300 hover:text-white">Categories</a>
-                <a href="#" class="text-gray-300 hover:text-white">Bookstore</a>
+                <a href="index.php" class="text-white font-bold text-xl">BookStore</a>
+                <a href="index.php" class="text-gray-300 hover:text-white transition">Books</a>
             </div>
             
             <div class="flex items-center space-x-4">
-                <div class="relative">
-                    <input type="text" 
-                           placeholder="Search Books..." 
-                           class="bg-book-blue text-white placeholder-gray-400 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
-                </div>
-                <a href="#" class="text-gray-300 hover:text-white">Login</a>
-                <a href="#" class="text-gray-300 hover:text-white">Sign Up</a>
-                <a href="cart.php" class="text-white">
-                    <img src="./cart.png" alt="Cart" class="h-9 w-9">
+                <span class="text-gray-300">Welcome, <?php echo htmlspecialchars($username); ?>!</span>
+                <a href="cart.php" class="text-white relative">
+                    <img src="./cart.png" alt="Cart" class="h-9 w-9 hover:opacity-80 transition">
+                </a>
+                <a href="logout.php" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
+                    Logout
                 </a>
             </div>
         </div>
@@ -105,8 +109,8 @@ if (isset($_POST['remove_item'])) {
                             <div class="flex items-start gap-4">
                                 <img src="<?php echo htmlspecialchars($item['cover']); ?>" 
                                      alt="<?php echo htmlspecialchars($item['title']); ?>" 
-                                     class="w-32 h-40 object-cover rounded"
-                                     onerror="this.onerror=null; this.src='/path/to/default-cover.jpg';">
+                                     class="w-32 h-40 object-cover rounded shadow-md"
+                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/300x400?text=No+Cover';">
                                 
                                 <div class="flex-1">
                                     <div class="flex justify-between">
@@ -122,15 +126,15 @@ if (isset($_POST['remove_item'])) {
                                                    name="quantity" 
                                                    value="<?php echo $item['quantity']; ?>" 
                                                    min="1" 
-                                                   class="w-16 px-2 py-1 border rounded">
+                                                   class="w-20 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                             <button type="submit" 
                                                     name="update_quantity" 
-                                                    class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
                                                 Update
                                             </button>
                                             <button type="submit" 
                                                     name="remove_item" 
-                                                    class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+                                                    class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors">
                                                 Remove
                                             </button>
                                         </form>
@@ -159,9 +163,9 @@ if (isset($_POST['remove_item'])) {
                                 <span>$<?php echo number_format($total, 2); ?></span>
                             </div>
                         </div>
-                        <button class="w-full bg-navy text-white py-2 rounded-md hover:bg-book-blue transition-colors">
+                        <a href="checkout.php" class="block w-full bg-navy text-white py-2 rounded-md hover:bg-book-blue transition-colors text-center">
                             Proceed to Checkout
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
