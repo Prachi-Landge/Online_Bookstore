@@ -112,11 +112,19 @@ $in_wishlist = $wishlist_stmt->fetch() !== false;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($book['title']); ?> - BookStore</title>
+    <!-- Modern Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'system-ui', 'sans-serif'],
+                        display: ['Playfair Display', 'serif']
+                    },
                     colors: {
                         'navy': '#1B2838',
                         'book-blue': '#2A475E'
@@ -126,13 +134,21 @@ $in_wishlist = $wishlist_stmt->fetch() !== false;
         }
     </script>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-gray-100 font-sans">
     <!-- Navigation -->
-    <nav class="bg-navy p-4 sticky top-0 z-50 shadow-lg">
+    <nav class="backdrop-blur bg-navy/90 border-b border-white/5 p-4 sticky top-0 z-50 shadow-lg">
         <div class="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center space-x-6">
-                <a href="index.php" class="text-white font-bold text-xl">BookStore</a>
+                <a href="index.php" class="text-white font-display text-2xl tracking-wide">
+                    <span class="inline-block align-middle">BookStore</span>
+                    <span class="ml-1 inline-block h-1 w-6 rounded-full bg-amber-400 align-middle"></span>
+                </a>
                 <a href="index.php" class="text-gray-300 hover:text-white transition">Books</a>
+                <a href="wishlist.php" class="text-gray-300 hover:text-white transition">Wishlist</a>
+                <a href="orders.php" class="text-gray-300 hover:text-white transition">My Orders</a>
+                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                    <a href="admin/index.php" class="text-gray-300 hover:text-white transition">Admin</a>
+                <?php endif; ?>
             </div>
             
             <div class="flex items-center space-x-4">
@@ -148,82 +164,89 @@ $in_wishlist = $wishlist_stmt->fetch() !== false;
     </nav>
 
     <?php if (isset($_GET['added'])): ?>
-    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative container mx-auto mt-4" role="alert">
-        <strong class="font-bold">Success!</strong>
-        <span class="block sm:inline"> Book added to cart.</span>
+    <div class="bg-emerald-500/10 border border-emerald-400/60 text-emerald-200 px-4 py-3 rounded-xl shadow-md container mx-auto mt-4 text-sm flex items-center justify-between gap-3" role="alert">
+        <span><strong class="font-semibold">Added to cart.</strong> You can adjust quantity from your cart anytime.</span>
+        <a href="cart.php" class="inline-flex items-center text-emerald-100 text-xs uppercase tracking-[0.18em] border border-emerald-300/40 rounded-full px-3 py-1 hover:bg-emerald-400/10 transition-colors">View cart</a>
     </div>
     <?php endif; ?>
 
     <!-- Book Details -->
-    <div class="container mx-auto px-4 py-8">
-        <a href="index.php" class="text-blue-600 hover:underline mb-4 inline-block">← Back to Books</a>
+    <div class="container mx-auto px-4 py-10">
+        <a href="index.php" class="inline-flex items-center text-slate-300 hover:text-white mb-4 text-sm">
+            ← <span class="ml-1 underline-offset-4 hover:underline">Back to Books</span>
+        </a>
         
-        <div class="bg-white rounded-lg shadow-lg p-6 md:p-8">
+        <div class="bg-slate-950/70 border border-slate-800 rounded-2xl shadow-[0_24px_70px_rgba(15,23,42,0.95)] p-6 md:p-8">
             <div class="grid md:grid-cols-2 gap-8">
                 <!-- Book Cover -->
                 <div>
                     <img src="<?php echo htmlspecialchars($book['cover']); ?>" 
                          alt="<?php echo htmlspecialchars($book['title']); ?>" 
-                         class="w-full rounded-lg shadow-md"
+                         class="w-full rounded-2xl shadow-[0_22px_65px_rgba(15,23,42,0.9)]"
                          onerror="this.onerror=null; this.src='https://via.placeholder.com/500x700?text=No+Cover';">
                 </div>
                 
                 <!-- Book Info -->
-                <div>
-                    <h1 class="text-3xl font-bold mb-2"><?php echo htmlspecialchars($book['title']); ?></h1>
-                    <p class="text-xl text-gray-600 mb-4">by <?php echo htmlspecialchars($book['author']); ?></p>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.22em] text-amber-300 mb-1">Book detail</p>
+                        <h1 class="text-3xl md:text-4xl font-display font-semibold mb-1 text-white"><?php echo htmlspecialchars($book['title']); ?></h1>
+                        <p class="text-base text-slate-300 mb-1">by <span class="font-medium text-slate-100"><?php echo htmlspecialchars($book['author']); ?></span></p>
+                    </div>
                     
                     <?php if ($book['category_name']): ?>
-                        <span class="inline-block bg-book-blue text-white px-3 py-1 rounded-full text-sm mb-4">
+                        <span class="inline-flex items-center gap-1 bg-slate-900/80 border border-amber-300/40 text-amber-200 px-3 py-1 rounded-full text-xs font-medium mb-1">
+                            <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
                             <?php echo htmlspecialchars($book['category_name']); ?>
                         </span>
                     <?php endif; ?>
                     
                     <!-- Rating -->
-                    <div class="flex items-center mb-4">
+                    <div class="flex items-center mb-2">
                         <?php 
                         $avg_rating = round($book['avg_rating'], 1);
                         $full_stars = floor($avg_rating);
                         $has_half = ($avg_rating - $full_stars) >= 0.5;
                         ?>
-                        <div class="flex text-yellow-400 mr-2">
+                        <div class="flex text-amber-400 mr-2">
                             <?php for ($i = 1; $i <= 5; $i++): ?>
                                 <?php if ($i <= $full_stars): ?>
-                                    <svg class="w-6 h-6 fill-current" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+                                    <svg class="w-6 h-6 fill-current drop-shadow-sm" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
                                 <?php elseif ($i == $full_stars + 1 && $has_half): ?>
-                                    <svg class="w-6 h-6 fill-current" viewBox="0 0 20 20"><path d="M10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545L10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0z"/></svg>
+                                    <svg class="w-6 h-6 fill-current drop-shadow-sm" viewBox="0 0 20 20"><path d="M10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545L10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0z"/></svg>
                                 <?php else: ?>
-                                    <svg class="w-6 h-6 text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+                                    <svg class="w-6 h-6 text-slate-600" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
                                 <?php endif; ?>
                             <?php endfor; ?>
                         </div>
-                        <span class="text-lg font-semibold"><?php echo $avg_rating > 0 ? $avg_rating : 'No ratings'; ?></span>
-                        <span class="text-gray-600 ml-2">(<?php echo $book['review_count']; ?> reviews)</span>
+                        <span class="text-sm font-medium text-slate-200"><?php echo $avg_rating > 0 ? $avg_rating : 'No ratings yet'; ?></span>
+                        <span class="text-xs text-slate-400 ml-2">(<?php echo $book['review_count']; ?> review<?php echo $book['review_count'] == 1 ? '' : 's'; ?>)</span>
                     </div>
                     
-                    <p class="text-3xl font-bold text-blue-600 mb-6">$<?php echo number_format($book['price'], 2); ?></p>
+                    <p class="text-3xl font-semibold text-amber-300 mb-4">$<?php echo number_format($book['price'], 2); ?></p>
                     
-                    <p class="text-gray-700 mb-6 leading-relaxed">
+                    <p class="text-slate-200 mb-6 leading-relaxed text-sm md:text-base">
                         <?php echo nl2br(htmlspecialchars($book['description'] ?? 'No description available.')); ?>
                     </p>
                     
                     <div class="flex gap-4">
                         <form method="post" class="flex-1">
                             <button type="submit" name="add_to_cart" 
-                                    class="w-full bg-navy text-white py-3 rounded-md hover:bg-book-blue transition-colors font-semibold text-lg">
+                                    class="w-full bg-gradient-to-r from-sky-500 to-sky-400 text-slate-950 py-3 rounded-xl hover:-translate-y-[1px] transition-all font-semibold text-lg shadow-lg shadow-sky-500/25 hover:shadow-sky-400/40">
                                 Add to Cart
                             </button>
                         </form>
                         
                         <form method="post">
                             <button type="submit" name="toggle_wishlist" 
-                                    class="px-6 py-3 rounded-md border-2 transition-colors flex items-center justify-center <?php echo $in_wishlist ? 'bg-red-100 border-red-500 text-red-700 hover:bg-red-200' : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'; ?>">
-                                <svg class="w-6 h-6 <?php echo $in_wishlist ? 'fill-current' : ''; ?>" 
+                                    class="px-6 py-3 rounded-xl border transition-colors flex items-center justify-center gap-2 <?php echo $in_wishlist ? 'bg-red-500/10 border-red-400 text-red-300 hover:bg-red-500/20' : 'bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800'; ?>">
+                                <svg class="w-6 h-6 <?php echo $in_wishlist ? 'fill-current text-red-400' : 'text-slate-400'; ?>" 
                                      fill="<?php echo $in_wishlist ? 'currentColor' : 'none'; ?>" 
                                      stroke="currentColor" 
                                      viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                                 </svg>
+                                <span class="text-sm font-medium"><?php echo $in_wishlist ? 'In wishlist' : 'Add to wishlist'; ?></span>
                             </button>
                         </form>
                     </div>
@@ -232,16 +255,16 @@ $in_wishlist = $wishlist_stmt->fetch() !== false;
         </div>
         
         <!-- Reviews Section -->
-        <div class="mt-8 bg-white rounded-lg shadow-lg p-6 md:p-8">
-            <h2 class="text-2xl font-bold mb-6">Reviews</h2>
+        <div class="mt-8 bg-slate-950/80 border border-slate-800 rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.95)] p-6 md:p-8">
+            <h2 class="text-2xl font-display font-semibold mb-6 text-white">Reviews</h2>
             
             <!-- Add Review Form -->
-            <div class="mb-8 p-4 bg-gray-50 rounded-lg">
-                <h3 class="font-semibold mb-4">Write a Review</h3>
+            <div class="mb-8 p-4 bg-slate-900/70 border border-slate-700 rounded-xl">
+                <h3 class="font-semibold mb-4 text-slate-100">Write a Review</h3>
                 <form method="post">
                     <div class="mb-4">
-                        <label class="block text-gray-700 mb-2">Rating</label>
-                        <select name="rating" required class="w-full md:w-48 px-4 py-2 border rounded-md">
+                        <label class="block text-slate-300 mb-2 text-sm">Rating</label>
+                        <select name="rating" required class="w-full md:w-48 px-4 py-2 border border-slate-700 bg-slate-900 rounded-md text-sm text-slate-100">
                             <option value="">Select Rating</option>
                             <option value="5">5 - Excellent</option>
                             <option value="4">4 - Very Good</option>
@@ -251,13 +274,13 @@ $in_wishlist = $wishlist_stmt->fetch() !== false;
                         </select>
                     </div>
                     <div class="mb-4">
-                        <label class="block text-gray-700 mb-2">Comment</label>
+                        <label class="block text-slate-300 mb-2 text-sm">Comment</label>
                         <textarea name="comment" rows="4" 
-                                  class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  class="w-full px-4 py-2 border border-slate-700 bg-slate-900 rounded-md text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
                                   placeholder="Write your review here..."></textarea>
                     </div>
                     <button type="submit" name="submit_review" 
-                            class="bg-navy text-white px-6 py-2 rounded-md hover:bg-book-blue transition-colors">
+                            class="bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 px-6 py-2 rounded-xl text-xs font-semibold uppercase tracking-[0.18em] hover:-translate-y-[1px] transition-all shadow-lg shadow-amber-500/25 hover:shadow-amber-400/40">
                         Submit Review
                     </button>
                 </form>
@@ -265,28 +288,28 @@ $in_wishlist = $wishlist_stmt->fetch() !== false;
             
             <!-- Reviews List -->
             <?php if (empty($reviews)): ?>
-                <p class="text-gray-600">No reviews yet. Be the first to review!</p>
+                <p class="text-slate-400 text-sm">No reviews yet. Be the first to share your thoughts.</p>
             <?php else: ?>
                 <div class="space-y-6">
                     <?php foreach ($reviews as $review): ?>
-                        <div class="border-b pb-4 last:border-0">
+                        <div class="border-b border-slate-800 pb-4 last:border-0">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center">
-                                    <span class="font-semibold"><?php echo htmlspecialchars($review['username']); ?></span>
-                                    <div class="flex text-yellow-400 ml-3">
+                                    <span class="font-semibold text-slate-100 text-sm"><?php echo htmlspecialchars($review['username']); ?></span>
+                                    <div class="flex text-amber-400 ml-3">
                                         <?php for ($i = 1; $i <= 5; $i++): ?>
                                             <?php if ($i <= $review['rating']): ?>
-                                                <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+                                                <svg class="w-4 h-4 fill-current drop-shadow-sm" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
                                             <?php else: ?>
-                                                <svg class="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+                                                <svg class="w-4 h-4 text-slate-600" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
                                             <?php endif; ?>
                                         <?php endfor; ?>
                                     </div>
                                 </div>
-                                <span class="text-sm text-gray-500"><?php echo date('M d, Y', strtotime($review['created_at'])); ?></span>
+                                <span class="text-xs text-slate-500"><?php echo date('M d, Y', strtotime($review['created_at'])); ?></span>
                             </div>
                             <?php if (!empty($review['comment'])): ?>
-                                <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($review['comment'])); ?></p>
+                                <p class="text-slate-200 text-sm leading-relaxed"><?php echo nl2br(htmlspecialchars($review['comment'])); ?></p>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
